@@ -25,6 +25,7 @@ monkey.patch_all()
 import logging
 import paramiko
 import os
+from itertools import izip
 from socket import gaierror as sock_gaierror, error as sock_error
 from .exceptions import UnknownHostException, AuthenticationException, \
      ConnectionErrorException, SSHException
@@ -255,17 +256,8 @@ class SSHClient(object):
             logger.error("Error occured creating directory on %s - %s",
                          self.host, error)
 
-    def copy_file(self, local_file, remote_file):
-        """Copy local file to host via SFTP/SCP
-        
-        Copy is done natively using SFTP/SCP version 2 protocol, no scp command \
-        is used or required.
-        
-        :param local_file: Local filepath to copy to remote host
-        :type local_file: str
-        :param remote_file: Remote filepath on remote host to copy file to
-        :type remote_file: str
-        """
+    def _copy_file(self, local_file, remote_file):
+        """Copy local file to host."""
         sftp = self._make_sftp()
         destination = remote_file.split(os.path.sep)
         remote_file = os.path.sep.join(destination)
@@ -283,3 +275,25 @@ class SSHClient(object):
         else:
             logger.info("Copied local file %s to remote destination %s:%s",
                         local_file, self.host, remote_file)
+
+    def copy_file(self, local_file, remote_file):
+        """Copy local file(s) to host via SFTP/SCP
+
+        Copy is done natively using SFTP/SCP version 2 protocol, no scp command \
+        is used or required.
+
+        :param local_file: Local filepath to copy to remote host
+        :type local_file: str
+        :type local_file: list
+        :param remote_file: Remote filepath on remote host to copy file to
+        :type remote_file: str
+        :type remote_file: list
+        """
+        if type(local_file) is list and type(remote_file) is list:
+            if len(local_file) != len(remote_file):
+                raise ValueError('The local_file and remote_file lists must be '
+                                 'of the same length.')
+            for loc_file, rem_file in izip(local_file, remote_file):
+                self._copy_file(loc_file, rem_file)
+        else:
+            self._copy_file(local_file, remote_file)
